@@ -23,6 +23,7 @@ pub (crate) async fn my_handler(event: LambdaEvent<Value>) -> Result<Value, Erro
         .map_err(|e| Error::from(e.to_string()))?; 
     let target_city = data.get("body").unwrap().as_str().unwrap();
     let api_response = request_api(target_city.to_string()).await.unwrap();
+
     Ok(json!(api_response))
 }
 
@@ -32,5 +33,14 @@ async fn request_api(city_name: String) -> Result<String, Box<dyn std::error::Er
     let id = env::var("ID")?;
     let url = format!("{}q={}&id={}&appid={}", api_url, city_name, id, api_key);
     let body = reqwest::get(&url).await?.text().await?;
-    Ok(body)
+    let response = parse_response(body);
+    Ok(response)
+}
+
+fn parse_response(response: String) -> String {
+    let map: HashMap<String, Value> = serde_json::from_str(&response).unwrap();
+    let list = map.get("list").unwrap().as_array().unwrap();
+    let first = list[0].as_object().unwrap();
+    let json_string = serde_json::to_string_pretty(first).unwrap();
+    json_string
 }
