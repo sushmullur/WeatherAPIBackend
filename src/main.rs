@@ -1,6 +1,7 @@
 use lambda_runtime::{service_fn, LambdaEvent, Error};
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::env;
 
 
 // Comments are notes to self
@@ -21,6 +22,15 @@ pub (crate) async fn my_handler(event: LambdaEvent<Value>) -> Result<Value, Erro
     let data: HashMap<String, Value> = serde_json::from_value(payload)
         .map_err(|e| Error::from(e.to_string()))?; 
     let target_city = data.get("body").unwrap().as_str().unwrap();
-    
-    Ok(json!({ "city": target_city }))
+    let api_response = request_api(target_city.to_string()).await.unwrap();
+    Ok(json!(api_response))
+}
+
+async fn request_api(city_name: String) -> Result<String, Box<dyn std::error::Error>> {
+    let api_url = env::var("API_URL")?;
+    let api_key = env::var("API_KEY")?;
+    let id = env::var("ID")?;
+    let url = format!("{}q={}&id={}&appid={}", api_url, city_name, id, api_key);
+    let body = reqwest::get(&url).await?.text().await?;
+    Ok(body)
 }
